@@ -1,0 +1,12 @@
+.list-group-item {
+    word-break: break-all;
+}
+
+#ex1Slider {
+    width: 100% !important;
+}
+
+.stream-meta-info:hover {
+    background-color: aliceblue;
+    cursor: pointer;
+}
