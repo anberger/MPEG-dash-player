@@ -5,11 +5,35 @@ var state = {
   END: "END"
 };
 
+var mimeTypes = {
+  AUDIO: "audio",
+  VIDEO: "video"
+};
+
+var log = {
+  info: function(msg, context) {
+    context = context ? context : "PLAYER";
+    console.info(context, msg);
+  },
+  warning: function(msg, context) {
+    context = context ? context : "PLAYER";
+    console.warn(context, msg);
+  },
+  error: function(msg, context) {
+    context = context ? context : "PLAYER";
+    console.error(context, msg);
+  }
+};
+
 function Player() {
   this._videoElement = null;
+  this._playButtonElement = null;
   this._playlistUrl = null;
   this._baseUrl = null;
-  this._metaInfo = [];
+  this._audioTrack = null;
+  this._videoTrack = null;
+  this._metaInfo = {};
+  this._state = state.STOP;
 }
 
 Player.prototype.handleError = function(error) {
@@ -20,9 +44,25 @@ Player.prototype.setVideoElement = function(video) {
   this._videoElement = video;
 };
 
+Player.prototype.setPlayButtonElement = function(button) {
+  this._playButtonElement = button;
+};
+
 Player.prototype.setPlaylistUrl = function(url) {
   this._playlistUrl = url;
   this._baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+};
+
+Player.prototype.setVideoTrack = function(id) {
+  this._videoTrack = id;
+  this.triggerTrackStateEvent(mimeTypes.VIDEO, this._videoTrack);
+  log.info(id, "setVideoTrack");
+};
+
+Player.prototype.setAudioTrack = function(id) {
+  this._audioTrack = id;
+  this.triggerTrackStateEvent(mimeTypes.AUDIO, this._audioTrack);
+  log.info(id, "setAudioTrack");
 };
 
 Player.prototype.play = function() {
@@ -33,92 +73,146 @@ Player.prototype.pause = function() {
   this._state = state.PAUSE;
 };
 
+Player.prototype.toggle = function() {
+  this._state = (this._state === state.PLAY) ? state.PAUSE : state.PLAY;
+  this.triggerPlayerStateEvent();
+};
+
 Player.prototype.stop = function() {
   this._state = state.STOP;
 };
 
-Player.prototype.download = function(url, cb) {
+Player.prototype.getState = function() {
+  return this._state;
+};
+
+Player.prototype.triggerPlayerStateEvent = function() {
+  var e = new CustomEvent("player-state", { detail: this._state });
+  document.dispatchEvent(e);
+};
+
+Player.prototype.triggerTrackStateEvent = function(type, track) {
+  var e = new CustomEvent("track-state", {
+    detail: {
+      track: track,
+      type: type
+    }
+  });
+  document.dispatchEvent(e);
+};
+
+Player.prototype.download = function(url, cb, options) {
   var xhttp = new XMLHttpRequest();
-  var self = this;
+
   xhttp.open('GET', url);
   xhttp.onreadystatechange = function() {
     if (xhttp.readyState === 4) {
       if (xhttp.status === 200) {
         cb(xhttp.response);
       } else {
-        self.handleError(xhttp.response);
+        log.error(xhttp.response);
       }
     }
   };
+
+  // Response should be raw data
+  if(options && options.range) {
+    xhttp.setRequestHeader("Range", "bytes=" + options.range);
+    xhttp.responseType = 'arraybuffer';
+  }
+
   xhttp.send();
 };
 
-Player.prototype.parseMetaPresentation = function(period_i, adaption, type) {
-  var self = this;
-  var representation = adaption.querySelectorAll("Representation");
-
-  for (var i = 0; i <= representation.length; i++) {
-    if (representation[i]) {
-      self._metaInfo[period_i][type]['representation'][i] = {};
-      var attr = representation[i].attributes;
-      for (var j = 0; j <= attr.length; j++) {
-        if (attr[j]) {
-          var key = attr[j].name;
-          self._metaInfo[period_i][type]['representation'][i][key] = attr[j].value;
-        }
+Player.prototype.getAttributes = function(xml) {
+  var obj = {};
+  if(xml) {
+    var attr = xml.attributes;
+    for(var i=0; i < attr.length; i++) {
+      if(attr[i]) {
+        obj[attr[i].name] = attr[i].value;
       }
     }
+  } else {
+    log.error("Got no XML attributes", "getAttributes");
+    log.error(xml, "getAttributes");
   }
-}
-
-Player.prototype.parseMetaAdaptionInner = function(period_i, adaption, type) {
-  var segmentInfo = adaption.querySelector("SegmentTemplate");
-  var attr = segmentInfo.attributes;
-  var self = this;
-
-  this._metaInfo[period_i][type]['segmentTemplate'] = {};
-  this._metaInfo[period_i][type]['representation'] = [];
-
-  for(var i=0; i <= attr.length; i++) {
-    if(attr[i]){
-      var key = attr[i].name;
-      self._metaInfo[period_i][type]['segmentTemplate'][key] = attr[i].value;
-    }
-  }
-
-  this.parseMetaPresentation(period_i, adaption, type);
+  return obj;
 };
 
-Player.prototype.parseMetaAdaptionSet = function(period, period_i) {
-  var self = this;
-  var adaptions = period.querySelectorAll("AdaptationSet");
-
-  for(var i=0; i<=adaptions.length; i++) {
-    if(adaptions[i]){
-      var mime = adaptions[i].getAttribute('mimeType');
-      if(mime.indexOf('audio') != -1) {
-        self.parseMetaAdaptionInner(period_i, adaptions[i], 'audio');
-      } else if(mime.indexOf('video') != -1) {
-        self.parseMetaAdaptionInner(period_i, adaptions[i], 'video');
-      }
-    }
+Player.prototype.parseMetaInfoAudio = function(xml, meta) {
+  var rep = xml.querySelectorAll("Representation");
+  for(var i = 0; i < rep.length; i++) {
+    meta.representation[i] = this.getAttributes(rep[i]);
+    var audioConfig = xml.querySelector("AudioChannelConfiguration");
+    meta.representation[i].audioChannelConfiguration = this.getAttributes(audioConfig);
+    var segTemplate = xml.querySelector("SegmentTemplate");
+    meta.representation[i].segmentTemplate = this.getAttributes(segTemplate);
+    meta.representation[i]._id = i;
   }
+  this._metaInfo.audio.push(meta);
+};
+
+Player.prototype.parseMetaInfoVideo = function(xml, meta) {
+  var rep = xml.querySelectorAll("Representation");
+  for(var i=0; i < rep.length; i++) {
+    meta.representation[i] = this.getAttributes(rep[i]);
+    var segTemplate = xml.querySelector("SegmentTemplate");
+    meta.representation[i].segmentTemplate = this.getAttributes(segTemplate);
+    meta.representation[i]._id = i;
+  }
+  this._metaInfo.video.push(meta);
+};
+
+Player.prototype.parseDuration = function(duration) {
+  duration = duration.replace('PT', '');
+  var hourIndex = duration.indexOf('H');
+  var minuteIndex = duration.indexOf('M');
+  var secondsIndex = duration.indexOf('S');
+  var hour = parseFloat(duration.substr(0, hourIndex));
+  var minute = parseFloat(duration.substr(++hourIndex, minuteIndex));
+  var seconds = parseFloat(duration.substr(++minuteIndex, secondsIndex));
+  this._metaInfo.mpd.duration = (hour * 3600) + (minute * 60) + seconds;
+};
+
+Player.prototype.calculateSegmentSize = function(segmentDuration, timescale) {
+  var mediaDuration = this.parseDuration(this._metaInfo.mpd.mediaPresentationDuration);
+  return parseInt(mediaDuration / (segmentDuration / timescale));
 };
 
 Player.prototype.parseMetaInfo = function(xml) {
-  var self = this;
   try {
-    var periods = xml.querySelectorAll("Period");
+    this._metaInfo['mpd'] = {};
+    this._metaInfo['audio'] = [];
+    this._metaInfo['video'] = [];
 
-    periods.forEach(function(period, period_i) {
+    // Get file MPD meta data
+    var mpd = xml.querySelector("MPD");
+    this._metaInfo.mpd = this.getAttributes(mpd);
 
-      self._metaInfo.push({});
-      self._metaInfo[period_i]['audio'] = {};
-      self._metaInfo[period_i]['video'] = {};
-      self.parseMetaAdaptionSet(period, period_i);
-    });
+    // Parse Duration from ISO String
+    this.parseDuration(this._metaInfo.mpd.mediaPresentationDuration);
 
-    console.log(self._metaInfo)
+    // Get adaptionsets
+    var adaptionSets = xml.querySelectorAll("AdaptationSet");
+
+    // Iterate through adaption sets
+    for(var i=0; i < adaptionSets.length; i++) {
+      var curr = adaptionSets[i].getAttribute('mimeType');
+      var meta = {
+        adaptationSet: this.getAttributes(adaptionSets[i]),
+        representation: []
+      };
+
+      if(curr.indexOf('video') != -1) {
+        this.parseMetaInfoVideo(adaptionSets[i], meta);
+      }
+      else if(curr.indexOf('audio') != -1) {
+        this.parseMetaInfoAudio(adaptionSets[i], meta);
+      }
+    }
+    log.info(this._metaInfo);
+    return this._metaInfo;
 
   } catch (e) {
     this.handleError(e);
@@ -131,8 +225,7 @@ Player.prototype.downloadPlaylist = function(cb) {
     try {
       var parser = new DOMParser();
       var xml = parser.parseFromString(res, "text/xml");
-      self.parseMetaInfo(xml);
-      cb(xml);
+      cb(self.parseMetaInfo(xml));
     } catch (e) {
       self.handleError(e);
     }
@@ -140,10 +233,7 @@ Player.prototype.downloadPlaylist = function(cb) {
 };
 
 Player.prototype.init = function() {
-  this.downloadPlaylist(function(xml) {
-
-  })
+  this.triggerPlayerStateEvent();
 };
-
 
 
