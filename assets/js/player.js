@@ -33,7 +33,13 @@ function Player() {
   this._audioTrack = null;
   this._videoTrack = null;
   this._metaInfo = {};
-  this._state = state.STOP;
+  this._playerState = {
+    state: state.STOP,
+    time: null,
+    segment: null,
+    audio: null,
+    video: null
+  }
 }
 
 Player.prototype.handleError = function(error) {
@@ -55,39 +61,39 @@ Player.prototype.setPlaylistUrl = function(url) {
 
 Player.prototype.setVideoTrack = function(id) {
   this._videoTrack = id;
-  this.triggerTrackStateEvent(mimeTypes.VIDEO, this._videoTrack);
+  this.triggerTrackStateEvent(mimeTypes.VIDEO, id);
+  this.setMediaRepresentation(mimeTypes.VIDEO, id);
   log.info(id, "setVideoTrack");
 };
 
 Player.prototype.setAudioTrack = function(id) {
   this._audioTrack = id;
-  this.triggerTrackStateEvent(mimeTypes.AUDIO, this._audioTrack);
+  this.triggerTrackStateEvent(mimeTypes.AUDIO, id);
+  this.setMediaRepresentation(mimeTypes.AUDIO, id);
   log.info(id, "setAudioTrack");
 };
 
 Player.prototype.play = function() {
-  this._state = state.PLAY;
+  this._playerState.state = state.PLAY;
 };
 
 Player.prototype.pause = function() {
-  this._state = state.PAUSE;
+  this._playerState.state = state.PAUSE;
 };
 
 Player.prototype.toggle = function() {
-  this._state = (this._state === state.PLAY) ? state.PAUSE : state.PLAY;
+  this._playerState.state = (this._playerState.state === state.PLAY) ? state.PAUSE : state.PLAY;
   this.triggerPlayerStateEvent();
 };
 
 Player.prototype.stop = function() {
-  this._state = state.STOP;
-};
-
-Player.prototype.getState = function() {
-  return this._state;
+  this._playerState.state = state.STOP;
 };
 
 Player.prototype.triggerPlayerStateEvent = function() {
-  var e = new CustomEvent("player-state", { detail: this._state });
+  var e = new CustomEvent("player-state", {
+    detail: this._playerState.state
+  });
   document.dispatchEvent(e);
 };
 
@@ -121,6 +127,7 @@ Player.prototype.download = function(url, cb, options) {
     xhttp.responseType = 'arraybuffer';
   }
 
+  // Send Request
   xhttp.send();
 };
 
@@ -171,7 +178,7 @@ Player.prototype.parseDuration = function(duration) {
   var secondsIndex = duration.indexOf('S');
   var hour = parseFloat(duration.substr(0, hourIndex));
   var minute = parseFloat(duration.substr(++hourIndex, minuteIndex));
-  var seconds = parseFloat(duration.substr(++minuteIndex, secondsIndex));
+  var seconds = parseInt(duration.substr(++minuteIndex, secondsIndex));
   this._metaInfo.mpd.duration = (hour * 3600) + (minute * 60) + seconds;
 };
 
@@ -230,6 +237,26 @@ Player.prototype.downloadPlaylist = function(cb) {
       self.handleError(e);
     }
   });
+};
+
+Player.prototype.videoInit = function() {
+  var video = this._videoElement;
+
+};
+
+Player.prototype.setMediaRepresentation = function(type, id) {
+  var element = this._metaInfo[type];
+  var self = this;
+  if(element.length) {
+    element.forEach(function(elItem) {
+      elItem.representation.forEach(function(representation) {
+        if(representation.id === id) {
+          self._playerState[type] = representation;
+        }
+      })
+    })
+  }
+  log.info(this._playerState)
 };
 
 Player.prototype.init = function() {
