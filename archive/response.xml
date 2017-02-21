@@ -71,7 +71,7 @@ https://bitdash-a.akamaihd.net/content/sintel/sintel.mpd
         <Representation id="1080p 6000kbps" frameRate="24" bandwidth="6214307" codecs="avc1.4d4028" width="1920" height="818">
             <SegmentTemplate timescale="1000" duration="2000" media="video/6000kbit/segment_$Number$.m4s" initialization="video/6000kbit/init.mp4" startNumber="1"/>
         </Representation>
-    </AdaptationSet>
+    </AdaptationSet>3
     <AdaptationSet group="14" mimeType="text/vtt" lang="en">
         <Representation id="caption_en" bandwidth="256">
             <BaseURL>subtitles/subtitles_en.vtt</BaseURL>

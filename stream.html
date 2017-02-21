@@ -32,11 +32,14 @@
             <button id="play-button" type="button" class="btn btn-default btn-md">
                 <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span> Play
             </button>
+            <button id="stop-button" type="button" class="btn btn-default btn-md">
+                <span class="glyphicon glyphicon-stop" aria-hidden="true"></span> Stop
+            </button>
         </div>
         <div class="col-lg-8">
             <h3>Stream</h3>
             <input id="stream-slider" data-slider-id='ex1Slider' type="text" data-slider-min="0" data-slider-max="300" data-slider-step="1" data-slider-value="14"/>
-            <video id="stream-video" autoplay></video>
+            <video id="stream-video" controls></video>
         </div>
     </div>
 </div>

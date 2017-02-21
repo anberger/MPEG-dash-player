@@ -89,6 +89,14 @@
   }
 
   /**
+   * @summary This function toggles the player state from pause to play and vice versa
+   * @param e
+   */
+  function stopButtonHandler(e) {
+    player.stop();
+  }
+
+  /**
    * @summary This function gets executed when the initialization process is done
    */
   function onLoad() {
@@ -100,9 +108,11 @@
     buttonElements.video = document.getElementById('select-video-button');
     buttonElements.audio = document.getElementById('select-audio-button');
     buttonElements.play = document.getElementById('play-button');
+    buttonElements.stop = document.getElementById('stop-button');
 
     // Set event listeners
     buttonElements.play.addEventListener('click', playButtonHandler, false);
+    buttonElements.stop.addEventListener('click', stopButtonHandler, false);
     dropDownElements.video.addEventListener('click', selectVideoHandler, false);
     dropDownElements.audio.addEventListener('click', selectAudioHandler, false);
     document.addEventListener('player-state', playButtonState, false);

@@ -27,7 +27,6 @@ var log = {
 
 function Player() {
   this._videoElement = null;
-  this._playButtonElement = null;
   this._playlistUrl = null;
   this._baseUrl = null;
   this._audioTrack = null;
@@ -36,9 +35,11 @@ function Player() {
   this._playerState = {
     state: state.STOP,
     time: null,
-    segment: null,
+    segment: 10,
+    segmentBlobs: null,
     audio: null,
-    video: null
+    video: null,
+    mimeType: null
   }
 }
 
@@ -50,10 +51,6 @@ Player.prototype.setVideoElement = function(video) {
   this._videoElement = video;
 };
 
-Player.prototype.setPlayButtonElement = function(button) {
-  this._playButtonElement = button;
-};
-
 Player.prototype.setPlaylistUrl = function(url) {
   this._playlistUrl = url;
   this._baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
@@ -61,33 +58,32 @@ Player.prototype.setPlaylistUrl = function(url) {
 
 Player.prototype.setVideoTrack = function(id) {
   this._videoTrack = id;
-  this.triggerTrackStateEvent(mimeTypes.VIDEO, id);
   this.setMediaRepresentation(mimeTypes.VIDEO, id);
+  this.triggerTrackStateEvent(mimeTypes.VIDEO, id);
   log.info(id, "setVideoTrack");
 };
 
 Player.prototype.setAudioTrack = function(id) {
   this._audioTrack = id;
-  this.triggerTrackStateEvent(mimeTypes.AUDIO, id);
   this.setMediaRepresentation(mimeTypes.AUDIO, id);
+  this.triggerTrackStateEvent(mimeTypes.AUDIO, id);
   log.info(id, "setAudioTrack");
 };
 
-Player.prototype.play = function() {
-  this._playerState.state = state.PLAY;
-};
-
-Player.prototype.pause = function() {
-  this._playerState.state = state.PAUSE;
-};
-
 Player.prototype.toggle = function() {
-  this._playerState.state = (this._playerState.state === state.PLAY) ? state.PAUSE : state.PLAY;
+  if(this._playerState.state === state.PLAY) {
+    this._playerState.state = state.PAUSE;
+  }
+  else {
+    this._playerState.state = state.PLAY;
+    this.videoInit();
+  }
   this.triggerPlayerStateEvent();
 };
 
 Player.prototype.stop = function() {
   this._playerState.state = state.STOP;
+  this.triggerPlayerStateEvent();
 };
 
 Player.prototype.triggerPlayerStateEvent = function() {
@@ -124,6 +120,10 @@ Player.prototype.download = function(url, cb, options) {
   // Response should be raw data
   if(options && options.range) {
     xhttp.setRequestHeader("Range", "bytes=" + options.range);
+  }
+
+  if(options && options.arrayBuffer) {
+    log.info("Response is an arrayBuffer");
     xhttp.responseType = 'arraybuffer';
   }
 
@@ -239,11 +239,6 @@ Player.prototype.downloadPlaylist = function(cb) {
   });
 };
 
-Player.prototype.videoInit = function() {
-  var video = this._videoElement;
-
-};
-
 Player.prototype.setMediaRepresentation = function(type, id) {
   var element = this._metaInfo[type];
   var self = this;
@@ -257,6 +252,92 @@ Player.prototype.setMediaRepresentation = function(type, id) {
     })
   }
   log.info(this._playerState)
+};
+
+Player.prototype.getNextUrl = function(type) {
+  var segment = this._playerState.segment;
+  var track = this._playerState[type];
+  var media = track.segmentTemplate.media;
+  media = media.replace("$Number$", segment.toString());
+  var url = this._baseUrl;
+  return url + media;
+};
+
+Player.prototype.updateFunction = function() {
+  log.info("play")
+}
+
+Player.prototype.openMediaSource = function(context) {
+
+
+  /*self.download(self.getNextUrl(mimeTypes.AUDIO), function(audioRes) {
+    self.download(self.getNextUrl(mimeTypes.VIDEO), function(videoRes) {
+
+      audioSource.addEventListener("updateend", function (event) {
+        console.log("sourceBuffer updateend event;"
+          + "mediaSource.readyState:"
+          , mediaSource.readyState);
+
+        audioSource.appendBuffer(audioRes);
+        mediaSource.endOfStream();
+        self._videoElement.play();
+        // console.log(mediaSource.readyState); // ended
+      });
+
+      videoSource.addEventListener("updateend", function (event) {
+        console.log("sourceBuffer updateend event;"
+          + "mediaSource.readyState:"
+          , mediaSource.readyState);
+        videoSource.appendBuffer(videoRes);
+        mediaSource.endOfStream();
+        self._videoElement.play();
+        // console.log(mediaSource.readyState); // ended
+      });
+
+    }, {arrayBuffer: true});
+  }, {arrayBuffer: true});*/
+};
+
+Player.prototype.videoInit = function() {
+  var self = this;
+  this._videoElement.innerHTML = "";
+  var audio = this._playerState.audio;
+  var video = this._playerState.video;
+  var mimeType = 'video/mp4; codecs="';
+  mimeType += video.codecs + ', ';
+  mimeType += audio.codecs + '"';
+  this._playerState.mimeType = mimeType;
+
+  this._videoElement.height = video.height;
+  this._videoElement.width = video.width;
+
+  if ('MediaSource' in window && MediaSource.isTypeSupported(mimeType)) {
+    var mediaSource = new MediaSource;
+    this._videoElement.src = URL.createObjectURL(mediaSource);
+
+    mediaSource.addEventListener('sourceopen', function(e) {
+      var mimeTypeVideo = 'video/mp4; codecs="' + self._playerState.video.codecs + '"';
+
+      try {
+        //var audioSource = mediaSource.addSourceBuffer(mimeTypeAudio);
+        var buffer = mediaSource.addSourceBuffer(mimeTypeVideo);
+
+        self.download(self.getNextUrl(mimeTypes.VIDEO), function(res) {
+          buffer.addEventListener('updateend', function (_) {
+            mediaSource.endOfStream();
+            self._videoElement.play();
+            console.log(mediaSource.readyState); // ended
+          });
+          buffer.appendBuffer(new Uint8Array(res));
+        })
+
+      } catch (e) {
+        log.error('Exception calling addSourceBuffer for video', e);
+      }
+    });
+  } else {
+    console.error('Unsupported MIME type or codec: ', mimeType);
+  }
 };
 
 Player.prototype.init = function() {
