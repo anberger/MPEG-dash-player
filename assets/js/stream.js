@@ -104,9 +104,7 @@
     // Initialize elements
     videoElement = document.getElementById('stream-video');
     dropDownElements.video = document.getElementById('select-video');
-    dropDownElements.audio = document.getElementById('select-audio');
     buttonElements.video = document.getElementById('select-video-button');
-    buttonElements.audio = document.getElementById('select-audio-button');
     buttonElements.play = document.getElementById('play-button');
     buttonElements.stop = document.getElementById('stop-button');
 
@@ -114,7 +112,6 @@
     buttonElements.play.addEventListener('click', playButtonHandler, false);
     buttonElements.stop.addEventListener('click', stopButtonHandler, false);
     dropDownElements.video.addEventListener('click', selectVideoHandler, false);
-    dropDownElements.audio.addEventListener('click', selectAudioHandler, false);
     document.addEventListener('player-state', playButtonState, false);
     document.addEventListener('track-state', trackState, false);
 

@@ -12,14 +12,6 @@
     <div class="row">
         <div class="col-lg-4">
             <h3>Stream Metadata</h3>
-            <h5>Audio Track</h5>
-            <div class="dropdown">
-                <button id="select-audio-button" class="btn btn-default dropdown-toggle" type="button" id="audioMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                    Audio
-                    <span class="caret"></span>
-                </button>
-                <ul id="select-audio" class="dropdown-menu" aria-labelledby="audioMenu"></ul>
-            </div>
             <h5>Video Track</h5>
             <div class="dropdown">
                 <button id="select-video-button" class="btn btn-default dropdown-toggle" type="button" id="videoMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
@@ -39,7 +31,7 @@
         <div class="col-lg-8">
             <h3>Stream</h3>
             <input id="stream-slider" data-slider-id='ex1Slider' type="text" data-slider-min="0" data-slider-max="300" data-slider-step="1" data-slider-value="14"/>
-            <video id="stream-video" controls></video>
+            <video id="stream-video" controls autoplay></video>
         </div>
     </div>
 </div>

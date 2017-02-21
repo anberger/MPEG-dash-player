@@ -6,7 +6,6 @@ var state = {
 };
 
 var mimeTypes = {
-  AUDIO: "audio",
   VIDEO: "video"
 };
 
@@ -29,15 +28,13 @@ function Player() {
   this._videoElement = null;
   this._playlistUrl = null;
   this._baseUrl = null;
-  this._audioTrack = null;
   this._videoTrack = null;
   this._metaInfo = {};
   this._playerState = {
     state: state.STOP,
     time: null,
-    segment: 10,
+    segment: 1,
     segmentBlobs: null,
-    audio: null,
     video: null,
     mimeType: null
   }
@@ -61,13 +58,6 @@ Player.prototype.setVideoTrack = function(id) {
   this.setMediaRepresentation(mimeTypes.VIDEO, id);
   this.triggerTrackStateEvent(mimeTypes.VIDEO, id);
   log.info(id, "setVideoTrack");
-};
-
-Player.prototype.setAudioTrack = function(id) {
-  this._audioTrack = id;
-  this.setMediaRepresentation(mimeTypes.AUDIO, id);
-  this.triggerTrackStateEvent(mimeTypes.AUDIO, id);
-  log.info(id, "setAudioTrack");
 };
 
 Player.prototype.toggle = function() {
@@ -147,19 +137,6 @@ Player.prototype.getAttributes = function(xml) {
   return obj;
 };
 
-Player.prototype.parseMetaInfoAudio = function(xml, meta) {
-  var rep = xml.querySelectorAll("Representation");
-  for(var i = 0; i < rep.length; i++) {
-    meta.representation[i] = this.getAttributes(rep[i]);
-    var audioConfig = xml.querySelector("AudioChannelConfiguration");
-    meta.representation[i].audioChannelConfiguration = this.getAttributes(audioConfig);
-    var segTemplate = xml.querySelector("SegmentTemplate");
-    meta.representation[i].segmentTemplate = this.getAttributes(segTemplate);
-    meta.representation[i]._id = i;
-  }
-  this._metaInfo.audio.push(meta);
-};
-
 Player.prototype.parseMetaInfoVideo = function(xml, meta) {
   var rep = xml.querySelectorAll("Representation");
   for(var i=0; i < rep.length; i++) {
@@ -190,7 +167,6 @@ Player.prototype.calculateSegmentSize = function(segmentDuration, timescale) {
 Player.prototype.parseMetaInfo = function(xml) {
   try {
     this._metaInfo['mpd'] = {};
-    this._metaInfo['audio'] = [];
     this._metaInfo['video'] = [];
 
     // Get file MPD meta data
@@ -213,9 +189,6 @@ Player.prototype.parseMetaInfo = function(xml) {
 
       if(curr.indexOf('video') != -1) {
         this.parseMetaInfoVideo(adaptionSets[i], meta);
-      }
-      else if(curr.indexOf('audio') != -1) {
-        this.parseMetaInfoAudio(adaptionSets[i], meta);
       }
     }
     log.info(this._metaInfo);
@@ -254,62 +227,46 @@ Player.prototype.setMediaRepresentation = function(type, id) {
   log.info(this._playerState)
 };
 
-Player.prototype.getNextUrl = function(type) {
+Player.prototype.getNextUrl = function() {
   var segment = this._playerState.segment;
-  var track = this._playerState[type];
+  var track = this._playerState.video;
   var media = track.segmentTemplate.media;
   media = media.replace("$Number$", segment.toString());
+  this._playerState.segment++;
   var url = this._baseUrl;
   return url + media;
 };
 
-Player.prototype.updateFunction = function() {
-  log.info("play")
-}
+Player.prototype.downloadNext = function(buffer) {
+  log.info("download")
+  var self = this;
+  var next = self.getNextUrl();
+  log.info(next)
+  if(self._playerState.segment > 70) return;
+  else {
 
-Player.prototype.openMediaSource = function(context) {
-
-
-  /*self.download(self.getNextUrl(mimeTypes.AUDIO), function(audioRes) {
-    self.download(self.getNextUrl(mimeTypes.VIDEO), function(videoRes) {
-
-      audioSource.addEventListener("updateend", function (event) {
-        console.log("sourceBuffer updateend event;"
-          + "mediaSource.readyState:"
-          , mediaSource.readyState);
-
-        audioSource.appendBuffer(audioRes);
-        mediaSource.endOfStream();
-        self._videoElement.play();
-        // console.log(mediaSource.readyState); // ended
-      });
-
-      videoSource.addEventListener("updateend", function (event) {
-        console.log("sourceBuffer updateend event;"
-          + "mediaSource.readyState:"
-          , mediaSource.readyState);
-        videoSource.appendBuffer(videoRes);
-        mediaSource.endOfStream();
-        self._videoElement.play();
-        // console.log(mediaSource.readyState); // ended
-      });
-
+    self.download(next, function(res) {
+      buffer.addEventListener('updateend', func);
+      buffer.appendBuffer(new Uint8Array(res));
     }, {arrayBuffer: true});
-  }, {arrayBuffer: true});*/
+
+    var func = function() {
+      buffer.removeEventListener('updateend', func);
+      self.downloadNext(buffer);
+    };
+  }
 };
 
 Player.prototype.videoInit = function() {
   var self = this;
   this._videoElement.innerHTML = "";
-  var audio = this._playerState.audio;
   var video = this._playerState.video;
-  var mimeType = 'video/mp4; codecs="';
-  mimeType += video.codecs + ', ';
-  mimeType += audio.codecs + '"';
+  this._videoElement.pause();
+  var mimeType = 'video/mp4; codecs="' + video.codecs + '"';
   this._playerState.mimeType = mimeType;
 
-  this._videoElement.height = video.height;
-  this._videoElement.width = video.width;
+  this._videoElement.height = parseInt(video.height * 0.4);
+  this._videoElement.width = parseInt(video.width * 0.4);
 
   if ('MediaSource' in window && MediaSource.isTypeSupported(mimeType)) {
     var mediaSource = new MediaSource;
@@ -319,17 +276,18 @@ Player.prototype.videoInit = function() {
       var mimeTypeVideo = 'video/mp4; codecs="' + self._playerState.video.codecs + '"';
 
       try {
-        //var audioSource = mediaSource.addSourceBuffer(mimeTypeAudio);
         var buffer = mediaSource.addSourceBuffer(mimeTypeVideo);
 
-        self.download(self.getNextUrl(mimeTypes.VIDEO), function(res) {
-          buffer.addEventListener('updateend', function (_) {
-            mediaSource.endOfStream();
-            self._videoElement.play();
-            console.log(mediaSource.readyState); // ended
-          });
+        self.download("http://project.dev/stream/files/720p/segment_init.mp4", function(res) {
+          buffer.addEventListener('updateend', func);
+
           buffer.appendBuffer(new Uint8Array(res));
-        })
+        }, {arrayBuffer: true});
+
+        var func = function() {
+          buffer.removeEventListener('updateend', func);
+          self.downloadNext(buffer);
+        };
 
       } catch (e) {
         log.error('Exception calling addSourceBuffer for video', e);
