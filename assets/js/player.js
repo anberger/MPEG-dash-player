@@ -33,12 +33,24 @@ function Player() {
   this._playerState = {
     state: state.STOP,
     time: null,
-    segment: 1,
+    segment: 0,
+    segmentBlobs: null,
+    video: null,
+    mimeType: null
+  };
+}
+
+Player.prototype.resetPlayerState = function () {
+  this._playerState = {
+    state: state.STOP,
+    time: null,
+    segment: 0,
     segmentBlobs: null,
     video: null,
     mimeType: null
   }
-}
+  this.triggerTrackStateEvent(mimeTypes.VIDEO, null);
+};
 
 Player.prototype.handleError = function(error) {
   console.error(error);
@@ -73,6 +85,7 @@ Player.prototype.toggle = function() {
 
 Player.prototype.stop = function() {
   this._playerState.state = state.STOP;
+  this.resetPlayerState();
   this.triggerPlayerStateEvent();
 };
 
@@ -141,11 +154,12 @@ Player.prototype.parseMetaInfoVideo = function(xml, meta) {
   var rep = xml.querySelectorAll("Representation");
   for(var i=0; i < rep.length; i++) {
     meta.representation[i] = this.getAttributes(rep[i]);
-    var segTemplate = xml.querySelector("SegmentTemplate");
+    var segTemplate = rep[i].querySelector("SegmentTemplate");
     meta.representation[i].segmentTemplate = this.getAttributes(segTemplate);
     meta.representation[i]._id = i;
   }
   this._metaInfo.video.push(meta);
+  log.info(this._metaInfo, "metaInfo")
 };
 
 Player.prototype.parseDuration = function(duration) {
@@ -156,12 +170,14 @@ Player.prototype.parseDuration = function(duration) {
   var hour = parseFloat(duration.substr(0, hourIndex));
   var minute = parseFloat(duration.substr(++hourIndex, minuteIndex));
   var seconds = parseInt(duration.substr(++minuteIndex, secondsIndex));
-  this._metaInfo.mpd.duration = (hour * 3600) + (minute * 60) + seconds;
+  return this._metaInfo.mpd.duration = (hour * 3600) + (minute * 60) + seconds;
 };
 
-Player.prototype.calculateSegmentSize = function(segmentDuration, timescale) {
+Player.prototype.calculateSegmentSize = function() {
   var mediaDuration = this.parseDuration(this._metaInfo.mpd.mediaPresentationDuration);
-  return parseInt(mediaDuration / (segmentDuration / timescale));
+  var segmentDuration = this._playerState.video.segmentTemplate.duration;
+  var timescale = this._playerState.video.segmentTemplate.timescale;
+  return Math.ceil(mediaDuration / (segmentDuration / timescale));
 };
 
 Player.prototype.parseMetaInfo = function(xml) {
@@ -231,24 +247,32 @@ Player.prototype.getNextUrl = function() {
   var segment = this._playerState.segment;
   var track = this._playerState.video;
   var media = track.segmentTemplate.media;
-  media = media.replace("$Number$", segment.toString());
-  this._playerState.segment++;
-  var url = this._baseUrl;
-  return url + media;
+  var baseUrl = this._baseUrl;
+  var url;
+
+  if(segment === 0) {
+    url = baseUrl + track.segmentTemplate.initialization;
+  }
+  else {
+    url = baseUrl + media.replace("$Number$", segment.toString());
+  }
+  return url;
 };
 
 Player.prototype.downloadNext = function(buffer) {
-  log.info("download")
   var self = this;
   var next = self.getNextUrl();
-  log.info(next)
-  if(self._playerState.segment > 70) return;
-  else {
+  log.info(next);
 
-    self.download(next, function(res) {
+  if(this._playerState.segment <= this.calculateSegmentSize()) {
+
+    this._playerState.segment++;
+    this.download(next, function(res) {
       buffer.addEventListener('updateend', func);
       buffer.appendBuffer(new Uint8Array(res));
-    }, {arrayBuffer: true});
+    }, {
+      arrayBuffer: true
+    });
 
     var func = function() {
       buffer.removeEventListener('updateend', func);
@@ -259,42 +283,25 @@ Player.prototype.downloadNext = function(buffer) {
 
 Player.prototype.videoInit = function() {
   var self = this;
-  this._videoElement.innerHTML = "";
   var video = this._playerState.video;
-  this._videoElement.pause();
-  var mimeType = 'video/mp4; codecs="' + video.codecs + '"';
-  this._playerState.mimeType = mimeType;
-
+  this._playerState.mimeType = 'video/mp4; codecs="' + video.codecs + '"';
   this._videoElement.height = parseInt(video.height * 0.4);
   this._videoElement.width = parseInt(video.width * 0.4);
 
-  if ('MediaSource' in window && MediaSource.isTypeSupported(mimeType)) {
+  if ('MediaSource' in window && MediaSource.isTypeSupported(this._playerState.mimeType)) {
     var mediaSource = new MediaSource;
     this._videoElement.src = URL.createObjectURL(mediaSource);
 
     mediaSource.addEventListener('sourceopen', function(e) {
-      var mimeTypeVideo = 'video/mp4; codecs="' + self._playerState.video.codecs + '"';
-
       try {
-        var buffer = mediaSource.addSourceBuffer(mimeTypeVideo);
-
-        self.download("http://project.dev/stream/files/720p/segment_init.mp4", function(res) {
-          buffer.addEventListener('updateend', func);
-
-          buffer.appendBuffer(new Uint8Array(res));
-        }, {arrayBuffer: true});
-
-        var func = function() {
-          buffer.removeEventListener('updateend', func);
-          self.downloadNext(buffer);
-        };
-
+        var buffer = mediaSource.addSourceBuffer(self._playerState.mimeType);
+        self.downloadNext(buffer);
       } catch (e) {
         log.error('Exception calling addSourceBuffer for video', e);
       }
     });
   } else {
-    console.error('Unsupported MIME type or codec: ', mimeType);
+    console.error('Unsupported MIME type or codec: ', this._playerState.mimeType);
   }
 };
 
