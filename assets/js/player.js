@@ -48,7 +48,7 @@ Player.prototype.resetPlayerState = function () {
     segmentBlobs: null,
     video: null,
     mimeType: null
-  }
+  };
   this.triggerTrackStateEvent(mimeTypes.VIDEO, null);
 };
 
@@ -58,6 +58,7 @@ Player.prototype.handleError = function(error) {
 
 Player.prototype.setVideoElement = function(video) {
   this._videoElement = video;
+  this._videoElement.ontimeupdate = this.timeUpdate.bind(this);
 };
 
 Player.prototype.setPlaylistUrl = function(url) {
@@ -177,7 +178,16 @@ Player.prototype.calculateSegmentSize = function() {
   var mediaDuration = this.parseDuration(this._metaInfo.mpd.mediaPresentationDuration);
   var segmentDuration = this._playerState.video.segmentTemplate.duration;
   var timescale = this._playerState.video.segmentTemplate.timescale;
-  return Math.ceil(mediaDuration / (segmentDuration / timescale));
+  return this._metaInfo.mpd.segmentSize = Math.ceil(mediaDuration / (segmentDuration / timescale));
+};
+
+Player.prototype.calculateCurrentSegment = function(time) {
+  var duration = this._metaInfo.mpd.duration;
+  var segmentSize = this._metaInfo.mpd.segmentSize;
+  var currSegment = Math.ceil((segmentSize / duration) * time);
+  log.info(time, "Current Player Time");
+  log.info(currSegment, "Current Segment");
+  return this._playerState.segment = currSegment;
 };
 
 Player.prototype.parseMetaInfo = function(xml) {
@@ -281,12 +291,20 @@ Player.prototype.downloadNext = function(buffer) {
   }
 };
 
+Player.prototype.timeUpdate = function(e) {
+  var currentTime = e.target.currentTime;
+  this.calculateCurrentSegment(currentTime);
+};
+
 Player.prototype.videoInit = function() {
   var self = this;
   var video = this._playerState.video;
   this._playerState.mimeType = 'video/mp4; codecs="' + video.codecs + '"';
-  this._videoElement.height = parseInt(video.height * 0.4);
-  this._videoElement.width = parseInt(video.width * 0.4);
+  var ratio = video.width / video.height;
+  var width = 500;
+  var height = parseInt(width / ratio);
+  this._videoElement.height = height;
+  this._videoElement.width = width;
 
   if ('MediaSource' in window && MediaSource.isTypeSupported(this._playerState.mimeType)) {
     var mediaSource = new MediaSource;
