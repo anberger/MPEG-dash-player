@@ -1,10 +1,13 @@
-<MPD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="urn:mpeg:dash:schema:mpd:2011" xsi:schemaLocation="urn:mpeg:dash:schema:mpd:2011 http://standards.iso.org/ittf/PubliclyAvailableStandards/MPEG-DASH_schema_files/DASH-MPD.xsd" type="static" mediaPresentationDuration="PT0H2M3.136S">
+<MPD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="urn:mpeg:dash:schema:mpd:2011" xsi:schemaLocation="urn:mpeg:dash:schema:mpd:2011 http://standards.iso.org/ittf/PubliclyAvailableStandards/MPEG-DASH_schema_files/DASH-MPD.xsd" type="static" mediaPresentationDuration="PT0H1M46.959S">
     <Period id="1" start="PT0S">
-        <AdaptationSet mimeType="video/mp4" minBandwidth="10587136" maxBandwidth="12597248" minWidth="1280" maxWidth="1920" minHeight="720" maxHeight="1080" segmentAlignment="true" startWithSAP="1">
-            <Representation id="720p 10MB/s" bandwidth="10336519" codecs="avc3.64001f,mp4a.40.2" frameRate="30000/1001" sar="1:1" audioSamplingRate="48000" width="1280" height="720">
+        <AdaptationSet mimeType="video/mp4" minBandwidth="721080" maxBandwidth="12597248" minWidth="498" maxWidth="1920" minHeight="280" maxHeight="1080" segmentAlignment="true" startWithSAP="1">
+            <Representation id="320p 700KB/s" bandwidth="721080" codecs="avc3.640015,mp4a.40.2" frameRate="24" sar="1:1" audioSamplingRate="44100" width="498" height="280">
+                <SegmentTemplate timescale="1000" duration="2000" media="files/320p/segment_$Number$.m4s" initialization="files/320p/segment_init.mp4" startNumber="1"/>
+            </Representation>
+            <Representation id="720p 2MB/s" bandwidth="2327729" codecs="avc3.64001f,mp4a.40.2" frameRate="24" sar="1:1" audioSamplingRate="44100" width="1280" height="720">
                 <SegmentTemplate timescale="1000" duration="2000" media="files/720p/segment_$Number$.m4s" initialization="files/720p/segment_init.mp4" startNumber="1"/>
             </Representation>
-            <Representation id="1080p 12MB/s" bandwidth="12299903" codecs="avc3.640028,mp4a.40.2" frameRate="30000/1001" sar="1:1" audioSamplingRate="48000" startWithSAP="0" width="1920" height="1080">
+            <Representation id="1080p 4MB/s" bandwidth="4495767" codecs="avc3.640028,mp4a.40.2" frameRate="24" sar="1:1" audioSamplingRate="44100" width="1920" height="1080">
                 <SegmentTemplate timescale="1000" duration="2000" media="files/1080p/segment_$Number$.m4s" initialization="files/1080p/segment_init.mp4" startNumber="1"/>
             </Representation>
         </AdaptationSet>
