@@ -8,33 +8,30 @@
 </head>
 <body>
 
-<div class="container">
-    <div class="row">
-        <div class="col-lg-4">
-            <h3>Stream Metadata</h3>
-            <h5>Video Track</h5>
+<div id="player-container">
+
+    <div id="meta-container">
+        <div id="data">
+            <a href="index.html">Go back</a>
+            <h5>Select Video Quality</h5>
             <div class="dropdown">
                 <button id="select-video-button" class="btn btn-default dropdown-toggle" type="button" id="videoMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                    Video
+                    Select Quality
                     <span class="caret"></span>
                 </button>
                 <ul id="select-video" class="dropdown-menu" aria-labelledby="videoMenu"></ul>
             </div>
-            <h5>Control</h5>
-            <button id="play-button" type="button" class="btn btn-default btn-md">
-                <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span> Play
-            </button>
-            <button id="stop-button" type="button" class="btn btn-default btn-md">
-                <span class="glyphicon glyphicon-stop" aria-hidden="true"></span> Stop
-            </button>
-        </div>
-        <div class="col-lg-8">
-            <h3>Stream</h3>
-            <input id="stream-slider" data-slider-id='ex1Slider' type="text" data-slider-min="0" data-slider-max="300" data-slider-step="1" data-slider-value="14"/>
-            <video id="stream-video" controls autoplay></video>
+            <h5>Video Metadata</h5>
+            <div id="select-video-meta"></div>
         </div>
     </div>
+
+    <div id="video-container">
+        <video id="stream-video" controls autoplay></video>
+    </div>
 </div>
+<div id="segments"></div>
+
 
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
       integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">

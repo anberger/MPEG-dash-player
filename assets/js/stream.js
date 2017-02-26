@@ -1,9 +1,10 @@
 (function() {
   var player = new Player();
-  var sliderElement = null;
+  var segmentBoxElement = null;
   var videoElement = null;
-  var dropDownElements = {};
-  var buttonElements = {};
+  var dropDownElement = null;
+  var buttonElement = null;
+  var metaElement = null;
   var url = null;
 
   /**
@@ -14,25 +15,6 @@
     var param = window.location.search.substring(1);
     var url = (param.indexOf('url=') != -1) ? param.split("=")[1] : "";
     return decodeURIComponent(url);
-  }
-
-  /**
-   * @summary This function prepares the segment slider
-   */
-  function prepareSlider() {
-    sliderElement = new Slider('#stream-slider', {
-      formatter: function(value) {
-        return 'Current value: ' + value;
-      }
-    });
-  }
-
-  /**
-   * @summary Audio track select handler
-   * @param e
-   */
-  function selectAudioHandler(e) {
-    player.setAudioTrack(e.target.id);
   }
 
   /**
@@ -47,53 +29,103 @@
    * @summary Updates track elements (fired by event from player)
    * @param e - Event params
    */
-  function trackState(e) {
-    var trackState = e.detail;
-    buttonElements[trackState.type].innerText = trackState.track;
+  function trackChange(e) {
+    var state = e.detail;
+    buttonElement.innerText = state.track;
+  }
+
+  function metaInfoChange(e) {
+    var meta = e.detail;
+    metaElement.innerHTML = "";
+    var duration = document.createElement("div");
+    var segmentCount = document.createElement("div");
+    var segmentLength = document.createElement("div");
+
+    duration.innerText = "Duration: " + meta.duration + " sec.";
+    segmentCount.innerText = "Segment Amount: " + meta.segmentCount;
+    segmentLength.innerText = "Segment Length: " + meta.segmentLength + " sec.";
+
+    metaElement.appendChild(duration);
+    metaElement.appendChild(segmentLength);
+    metaElement.appendChild(segmentCount);
   }
 
   /**
-   * @summary Updates play button state (fired by event from player)
-   * @param e - Event params
+   * @summary Check if element is in array
+   * @param arr - Array to check
+   * @param el - Corresponding element
+   * @return {boolean} - True if found
    */
-  function playButtonState(e) {
-    var cState = e.detail;
-    var target = buttonElements.play;
-    var text = "";
-    var icon = "glyphicon glyphicon-";
+  function isInArray(arr, el) {
+    for(var i = 0; i < arr.length; i++) {
+      if(arr[i] === el) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-    if(state.PLAY == cState) {
-      text = " Pause";
-      icon += "pause";
-    } else {
-      text = " Play";
-      icon += "play";
+  /**
+   * @summary Segment clicked handle
+   * @param e - Event
+   */
+  function segmentClicked(e) {
+    var segmentId = e.target.id.split("_");
+    if (segmentId && segmentId.length) {
+      player.segmentBrowsing(parseInt(segmentId[1]))
+    }
+  }
+
+  /**
+   * @summary Create initial segment list
+   * @param count
+   */
+  function initializeSegments(count) {
+    segmentBoxElement.innerHTML = null;
+    for(var i = 1; i <= count; i++) {
+      var el = document.createElement("div");
+      el.innerText = "SEG_" + i;
+      el.id = "segment_" + i;
+      segmentBoxElement.appendChild(el);
+    }
+    segmentBoxElement.addEventListener('click', segmentClicked, false);
+  }
+
+  /**
+   * @summary Update segment state corresponding to player state
+   * @param downloaded - Array of downloaded files
+   * @param current - Current played segment
+   */
+  function updateSegmentState(downloaded, current) {
+    for(var i = 1; i <= segmentBoxElement.children.length; i++) {
+      var el = document.getElementById('segment_' + i);
+      var className = "segment-element";
+      if(isInArray(downloaded, i)) {
+        className += " downloaded";
+      } else {
+        className += " pending";
+      }
+      if(i === current) {
+        className += " current";
+      }
+      el.className = className;
+    }
+  }
+
+  /**
+   * @summary This function updates the segment list state (executed by player events)
+   * @param e - Event
+   */
+  function segmentChange(e) {
+    var segment = e.detail;
+
+    // Check if elements are already created
+    if(segmentBoxElement.children.length !== segment.segmentCount) {
+      initializeSegments(segment.segmentCount);
     }
 
-    var span = document.createElement('span');
-    var txt = document.createTextNode(text);
-    target.innerText = "";
-    target.innerHTML = "";
-    target.childNodes =[];
-    span.className = icon;
-    target.appendChild(span);
-    target.appendChild(txt);
-  }
-
-  /**
-   * @summary This function toggles the player state from pause to play and vice versa
-   * @param e
-   */
-  function playButtonHandler(e) {
-    player.toggle();
-  }
-
-  /**
-   * @summary This function toggles the player state from pause to play and vice versa
-   * @param e
-   */
-  function stopButtonHandler(e) {
-    player.stop();
+    // Update segment state according to state
+    updateSegmentState(segment.downloadedSegments, segment.currentSegment);
   }
 
   /**
@@ -103,20 +135,16 @@
 
     // Initialize elements
     videoElement = document.getElementById('stream-video');
-    dropDownElements.video = document.getElementById('select-video');
-    buttonElements.video = document.getElementById('select-video-button');
-    buttonElements.play = document.getElementById('play-button');
-    buttonElements.stop = document.getElementById('stop-button');
+    segmentBoxElement = document.getElementById('segments');
+    dropDownElement = document.getElementById('select-video');
+    buttonElement = document.getElementById('select-video-button');
+    metaElement = document.getElementById('select-video-meta');
 
     // Set event listeners
-    buttonElements.play.addEventListener('click', playButtonHandler, false);
-    buttonElements.stop.addEventListener('click', stopButtonHandler, false);
-    dropDownElements.video.addEventListener('click', selectVideoHandler, false);
-    document.addEventListener('player-state', playButtonState, false);
-    document.addEventListener('track-state', trackState, false);
-
-    // Prepare HTML elements
-    prepareSlider();
+    dropDownElement.addEventListener('click', selectVideoHandler, false);
+    document.addEventListener('track-change', trackChange, false);
+    document.addEventListener('segment-change', segmentChange, false);
+    document.addEventListener('meta-info-change', metaInfoChange, false);
 
     // Get url from location param
     url = getUrlFromParam();
@@ -128,28 +156,22 @@
     player.setVideoElement(videoElement);
 
     // Download playlist and update meta info
-    player.downloadPlaylist(function(metaInfo) {
-      for(var t in mimeTypes) {
-        type = mimeTypes[t];
-        if(metaInfo.hasOwnProperty(type)) {
-          dropDownElements[type].childNodes = [];
-          metaInfo[type].forEach(function(item) {
-            item.representation.forEach(function(repr) {
-              var li = document.createElement('li');
-              var a = document.createElement('a');
-              a.innerText = repr.id;
-              a.setAttribute('href', '#');
-              a.setAttribute('id', repr.id);
-              li.appendChild(a);
-              dropDownElements[type].appendChild(li);
-            })
-          });
-        }
+    player.downloadPlaylist(function(err, metaInfo) {
+      if(!err) {
+        dropDownElement.childNodes = [];
+        metaInfo.video.forEach(function(item) {
+          item.representation.forEach(function(repr) {
+            var li = document.createElement('li');
+            var a = document.createElement('a');
+            a.innerText = repr.id;
+            a.setAttribute('href', '#');
+            a.setAttribute('id', repr.id);
+            li.appendChild(a);
+            dropDownElement.appendChild(li);
+          })
+        });
       }
     });
-
-    // Initialize the player
-    player.init();
   }
   window.onload = onLoad;
 })();

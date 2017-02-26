@@ -1,12 +1,78 @@
+html, body {
+    height: 100%;
+}
+
 .list-group-item {
     word-break: break-all;
 }
 
-#ex1Slider {
-    width: 100% !important;
+#player-container {
+    width: 100%;
+    display: inline-flex;
+    margin: 50px 0;
 }
 
-.stream-meta-info:hover {
-    background-color: aliceblue;
+#video-container {
+    width: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#meta-container {
+    width: 20%;
+    padding: 0 50px;
+}
+
+.pending {
+    background-color: rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+.downloaded {
+    background-color: rgba(144, 238, 144, 0.25);
+}
+
+.current {
+    background-color: lightgreen;
+    color: white;
+}
+
+#meta-container {
+    display: flex;
+}
+
+#segments {
+    width: 100%;
+    overflow: hidden;
+    overflow-x: scroll;
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+.segment-element {
+    display: flex;
+    align-items: center;
+    width: 100px;
+    height: 100px;
+    padding: 20px;
+}
+
+.segment-element:hover {
     cursor: pointer;
+    border: 2px solid white;
+}
+
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+    border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 20px;
+    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.5);
 }
