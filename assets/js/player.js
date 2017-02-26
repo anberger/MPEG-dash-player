@@ -517,11 +517,11 @@ Player.prototype.videoInit = function() {
   var ratio = video.width / video.height;
 
   // Scale video
-  var height = (window.innerHeight * 0.6);
+  var width = (window.innerWidth * 0.6);
 
   // Set video dimensions
-  this._videoElement.height = height;
-  this._videoElement.width = parseInt(height * ratio);
+  this._videoElement.height = parseInt(width / ratio);
+  this._videoElement.width = width;
 
   // Check if media source is available
   if ('MediaSource' in window && MediaSource.isTypeSupported(this._playerState.mimeType)) {
