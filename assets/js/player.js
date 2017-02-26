@@ -486,7 +486,7 @@ Player.prototype.segmentBrowsing = function(segmentId) {
   var segmentLength = this.getSegmentLengthInSeconds();
 
   // Calculate current time based on segment number
-  this._videoElement.currentTime = (segmentId * segmentLength) - segmentLength;
+  this._videoElement.currentTime = (segmentId * segmentLength);
 
   // Force play
   this._videoElement.play();
