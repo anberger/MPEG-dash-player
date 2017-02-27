@@ -8,7 +8,8 @@
    */
   function redirect(value) {
     var param = encodeURIComponent(value);
-    window.location.href = "/stream.html?url=" + param
+    var location = window.location.href.replace('index.html', '');
+    window.location.href = location + "stream.html?url=" + param
   }
 
   /**
